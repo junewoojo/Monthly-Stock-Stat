@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주가지수 월간 통계 대시보드</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --navy: #0C2340;
+  --teal: #00857C;
+  --teal-light: #5BB6B0;
+  --bg: #F7F8FA;
+  --card: #FFFFFF;
+  --border: #E5E8ED;
+  --text: #1A2332;
+  --muted: #6B7785;
+  --pos: #D4E9D7;
+  --pos-strong: #2E7D32;
+  --neg: #F8D7DA;
+  --neg-strong: #C0392B;
+  --highlight: #FFF4D6;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  padding: 24px;
+  font-size: 14px;
+}
+.container { max-width: 1200px; margin: 0 auto; }
+.header {
+  background: var(--navy);
+  color: white;
+  padding: 28px 32px;
+  border-radius: 12px 12px 0 0;
+  position: relative;
+  overflow: hidden;
+}
+.header::before {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 4px;
+  background: var(--teal);
+}
+.header h1 { font-size: 24px; font-weight: 700; margin-bottom: 6px; letter-spacing: -0.3px; }
+.header .sub { font-size: 13px; opacity: 0.85; font-weight: 300; }
+.header .badge {
+  display: inline-block;
+  background: var(--teal);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 3px;
+  margin-bottom: 10px;
+  letter-spacing: 0.5px;
+}
+.tabs {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  overflow-x: auto;
+}
+.tab {
+  padding: 14px 22px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+}
+.tab:hover { color: var(--navy); }
+.tab.active { color: var(--navy); border-bottom-color: var(--teal); }
+.content {
+  background: var(--card);
+  padding: 32px;
+  border-radius: 0 0 12px 12px;
+  min-height: 600px;
+  border: 1px solid var(--border);
+  border-top: none;
+}
+.section { display: none; animation: fadeIn 0.3s; }
+.section.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.section h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section h2::before { content: ''; width: 4px; height: 20px; background: var(--teal); }
+.section .desc { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--teal);
+  border-radius: 8px;
+  padding: 18px 20px;
+}
+.stat-card .name { font-size: 13px; font-weight: 700; color: var(--navy); margin-bottom: 12px; letter-spacing: 0.3px; }
+.stat-card .row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 4px 0;
+  border-bottom: 1px solid #F0F2F5;
+}
+.stat-card .row:last-child { border: none; }
+.stat-card .row .label { color: var(--muted); }
+.stat-card .row .val { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.stat-card.winner { border-left-color: #B8860B; background: linear-gradient(to bottom, #FFF8E1, white 30%); }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-bottom: 16px; }
+thead th { background: var(--navy); color: white; padding: 10px 12px; font-weight: 600; text-align: center; font-size: 12px; }
+thead th:first-child { text-align: left; }
+tbody td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+tbody td:first-child { text-align: left; font-weight: 600; background: #FAFBFC; }
+tbody tr:hover { background: #F4F6F9; }
+.pos { background: var(--pos); color: var(--pos-strong); font-weight: 600; }
+.neg { background: var(--neg); color: var(--neg-strong); font-weight: 600; }
+.highlight { background: var(--highlight); }
+.event-cell { text-align: left !important; font-size: 11.5px; color: var(--muted); }
+.season-chart {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.season-chart h3 { font-size: 14px; font-weight: 700; color: var(--navy); margin-bottom: 14px; }
+.bars-row {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 4px;
+  align-items: end;
+  height: 140px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.bars-row::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  top: 50%;
+  border-top: 1px dashed #CCD2D9;
+}
+.bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  position: relative;
+}
+.bar { width: 80%; background: var(--teal); border-radius: 3px 3px 0 0; min-height: 1px; position: relative; }
+.bar.negative { background: var(--neg-strong); border-radius: 0 0 3px 3px; }
+.bar:hover { opacity: 0.8; }
+.bar-val { position: absolute; font-size: 10px; font-weight: 600; white-space: nowrap; color: var(--navy); }
+.month-labels {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 4px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+}
+.corr-matrix {
+  display: grid;
+  grid-template-columns: 140px repeat(3, 1fr);
+  gap: 2px;
+  max-width: 600px;
+  margin-bottom: 20px;
+}
+.corr-cell { padding: 14px; text-align: center; font-weight: 600; font-size: 14px; border-radius: 4px; }
+.corr-header { background: var(--navy); color: white; }
+.corr-self { background: var(--highlight); color: var(--navy); }
+.corr-high { background: #F4A09C; color: #5C0F0B; }
+.corr-mid { background: #FFE0B2; color: #6B3E00; }
+.corr-low { background: #C8E6C9; color: #1B5E20; }
+.footnote {
+  background: #F4F6F9;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-top: 20px;
+}
+.footnote strong { color: var(--navy); }
+.legend { display: flex; gap: 16px; margin-bottom: 16px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend-box { width: 14px; height: 14px; border-radius: 3px; }
+.update-badge {
+  display: inline-block;
+  background: var(--teal-light);
+  color: var(--navy);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 3px;
+  margin-left: 8px;
+}
+.download-link {
+  display: inline-block;
+  background: var(--teal);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 16px;
+}
+.download-link:hover { background: #006A63; }
+@media (max-width: 768px) {
+  .stat-grid { grid-template-columns: 1fr; }
+  body { padding: 12px; font-size: 13px; }
+  .header { padding: 20px; }
+  .header h1 { font-size: 18px; }
+  .content { padding: 18px; }
+  table { font-size: 11px; }
+  thead th, tbody td { padding: 6px 4px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <span class="badge">MARKET ANALYSIS · MONTHLY UPDATE</span>
+  <h1>주가지수 월간 통계 대시보드</h1>
+  <div class="sub">
+    S&P 500 · NASDAQ 100 · KOSPI / <span id="period"></span>
+    <span class="update-badge" id="updated"></span>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" data-tab="overview">요약</button>
+  <button class="tab" data-tab="annual">연간 수익률</button>
+  <button class="tab" data-tab="monthly">월간 통계</button>
+  <button class="tab" data-tab="seasonality">계절성</button>
+  <button class="tab" data-tab="correlation">상관관계</button>
+</div>
+
+<div class="content">
+
+<div class="section active" id="overview">
+  <h2>한눈에 보는 핵심 지표</h2>
+  <div class="desc">월간 수익률 기반 위험·수익 종합 비교</div>
+  <div class="stat-grid" id="stat-cards"></div>
+  <div class="footnote" id="overview-note"></div>
+  <a class="download-link" href="data.xlsx" download>📊 Excel 데이터 파일 다운로드</a>
+</div>
+
+<div class="section" id="annual">
+  <h2>연간 수익률 & 금리</h2>
+  <div class="desc">2006년 ~ 현재 / Yahoo Finance 연말 종가 기준 (Price Return)</div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-box" style="background:var(--pos)"></div>플러스</div>
+    <div class="legend-item"><div class="legend-box" style="background:var(--neg)"></div>마이너스</div>
+  </div>
+  <table>
+    <thead>
+      <tr><th>연도</th><th>S&P 500 (%)</th><th>NASDAQ 100 (%)</th><th>KOSPI (%)</th>
+          <th>Fed Funds</th><th>BOK</th><th>주요 이벤트</th></tr>
+    </thead>
+    <tbody id="annual-tbody"></tbody>
+  </table>
+  <div class="footnote">
+    <strong>주의</strong> · 모든 지수 Price Return 기준 (배당 미포함). Total Return 비교 원하면 별도 계산 필요.
+  </div>
+</div>
+
+<div class="section" id="monthly">
+  <h2>월간 수익률 통계</h2>
+  <div class="desc">평균·변동성·꼬리위험·왜도/첨도 등 분포 특성 비교</div>
+  <table>
+    <thead>
+      <tr><th>지표</th><th>S&P 500</th><th>NASDAQ 100</th><th>KOSPI</th><th>해석</th></tr>
+    </thead>
+    <tbody id="monthly-stats-tbody"></tbody>
+  </table>
+  <div class="footnote">
+    <strong>읽는 법</strong> · <strong>Sharpe-like</strong> RF=0 가정.
+    <strong>CVaR 5%</strong>는 최악 5% 시나리오의 평균 손실 (Expected Shortfall).
+    <strong>첨도</strong>가 높을수록 정규분포보다 극단치 빈번.
+  </div>
+</div>
+
+<div class="section" id="seasonality">
+  <h2>월별 평균 수익률 (계절성)</h2>
+  <div class="desc">각 월의 평균 수익률을 그룹화한 결과 — "Sell in May" 검증</div>
+  <div id="season-charts"></div>
+</div>
+
+<div class="section" id="correlation">
+  <h2>월간 수익률 상관관계</h2>
+  <div class="desc">Pearson 상관계수 (1.0 = 완전동행, 0 = 무관, -1 = 반대)</div>
+  <div class="corr-matrix" id="corr-matrix"></div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-box" style="background:#F4A09C"></div>>0.85 (분산 효과 거의 없음)</div>
+    <div class="legend-item"><div class="legend-box" style="background:#FFE0B2"></div>0.5~0.85 (제한적 분산)</div>
+    <div class="legend-item"><div class="legend-box" style="background:#C8E6C9"></div><0.5 (분산 가치 있음)</div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<script>
+// ============================================================
+// 데이터 (GitHub Actions에서 매월 업데이트)
+// ============================================================
+const DATA = __DATA_JSON__;
+
+// ============================================================
+// Header info
+// ============================================================
+document.getElementById('period').textContent = `${DATA.period_start} ~ ${DATA.period_end} (${DATA.n_months}개월)`;
+document.getElementById('updated').textContent = `Last Updated: ${DATA.updated_at}`;
+
+// ============================================================
+// Tab navigation
+// ============================================================
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ============================================================
+// Overview cards
+// ============================================================
+const indexNames = ['S&P 500', 'NASDAQ 100', 'KOSPI'];
+// Determine winner by Sharpe
+const sharpes = indexNames.map(n => DATA.stats[n].sharpe);
+const winnerIdx = sharpes.indexOf(Math.max(...sharpes));
+
+const cardsHtml = indexNames.map((name, i) => {
+  const s = DATA.stats[name];
+  const trophy = i === winnerIdx ? ' 🏆' : '';
+  const winnerCls = i === winnerIdx ? ' winner' : '';
+  return `
+    <div class="stat-card${winnerCls}">
+      <div class="name">${name}${trophy}</div>
+      <div class="row"><span class="label">CAGR (연환산)</span><span class="val">${s.cagr.toFixed(1)}%</span></div>
+      <div class="row"><span class="label">월 평균</span><span class="val">${s.mean.toFixed(2)}%</span></div>
+      <div class="row"><span class="label">연 변동성</span><span class="val">${s.ann_vol.toFixed(1)}%</span></div>
+      <div class="row"><span class="label">Sharpe-like</span><span class="val">${s.sharpe.toFixed(2)}</span></div>
+      <div class="row"><span class="label">상승월 비율</span><span class="val">${s.hit_rate.toFixed(1)}%</span></div>
+      <div class="row"><span class="label">CVaR (5%)</span><span class="val">${s.cvar_5.toFixed(1)}%</span></div>
+    </div>
+  `;
+}).join('');
+document.getElementById('stat-cards').innerHTML = cardsHtml;
+
+// Overview note
+const winner = indexNames[winnerIdx];
+const winnerSharpe = DATA.stats[winner].sharpe.toFixed(2);
+const corrSpNdx = (DATA.correlation['S&P 500']['NASDAQ 100']).toFixed(2);
+const corrSpKp = (DATA.correlation['S&P 500']['KOSPI']).toFixed(2);
+document.getElementById('overview-note').innerHTML = `
+  <strong>핵심 결론</strong> · 위험조정 수익률(Sharpe) 1위는 <strong>${winner} (${winnerSharpe})</strong>.
+  <br>S&P 500 ↔ NDX 상관 <strong>${corrSpNdx}</strong> (분산 효과 미미), S&P ↔ KOSPI <strong>${corrSpKp}</strong> (분산 가치 있음).
+`;
+
+// ============================================================
+// Annual table
+// ============================================================
+const tbody = document.getElementById('annual-tbody');
+const currentYear = new Date().getFullYear();
+DATA.annual.forEach(row => {
+  const [yr, sp, nd, kp, fed, bok, ev] = row;
+  const ytd = yr === currentYear ? ' YTD' : '';
+  const fmtRet = v => v === null ? '-' : v.toFixed(2);
+  const cls = v => v === null ? '' : (v >= 0 ? 'pos' : 'neg');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td>${yr}${ytd}</td>
+    <td class="${cls(sp)}">${fmtRet(sp)}</td>
+    <td class="${cls(nd)}">${fmtRet(nd)}</td>
+    <td class="${cls(kp)}">${fmtRet(kp)}</td>
+    <td>${fed === null ? '-' : fed.toFixed(2)}</td>
+    <td>${bok === null ? '-' : bok.toFixed(2)}</td>
+    <td class="event-cell">${ev}</td>
+  `;
+  tbody.appendChild(tr);
+});
+
+// ============================================================
+// Monthly stats table
+// ============================================================
+const metricRows = [
+  ['관측치 (월)', 'n', '0', '20년 + 추가'],
+  ['월 평균 (%)', 'mean', '2', '월간 평균 수익률'],
+  ['중위값 (%)', 'median', '2', '50% 확률 이상'],
+  ['표준편차 (%)', 'std', '2', '월간 변동성'],
+  ['연환산 변동성 (%)', 'ann_vol', '1', 'σ × √12'],
+  ['최저 월 (%)', 'min', '2', '단일 월 최대 손실'],
+  ['최저 월 시점', 'min_month', null, '대부분 글로벌 위기 시점'],
+  ['최고 월 (%)', 'max', '2', '단일 월 최대 수익'],
+  ['최고 월 시점', 'max_month', null, '강세장 정점'],
+  ['왜도', 'skew', '2', '음수=좌측 꼬리 (큰 손실 위험)'],
+  ['첨도', 'kurtosis', '2', '높을수록 극단치 빈번'],
+  ['상승월 비율 (%)', 'hit_rate', '1', '월간 양수 확률'],
+  ['VaR 5% (%)', 'var_5', '2', '5% 확률 이하 손실 한계'],
+  ['CVaR 5% (%)', 'cvar_5', '2', '꼬리 손실 평균'],
+  ['CAGR (연환산 %)', 'cagr', '2', '월간복리 → 연환산'],
+  ['Sharpe-like', 'sharpe', '2', '(평균/σ)×√12']
+];
+const mTbody = document.getElementById('monthly-stats-tbody');
+metricRows.forEach(([label, key, fmt, note]) => {
+  const tr = document.createElement('tr');
+  const fmtVal = (v) => {
+    if (fmt === null) return v;  // 시점은 그대로
+    if (fmt === '0') return v.toFixed(0);
+    return v.toFixed(parseInt(fmt));
+  };
+  tr.innerHTML = `
+    <td>${label}</td>
+    <td>${fmtVal(DATA.stats['S&P 500'][key])}</td>
+    <td class="highlight">${fmtVal(DATA.stats['NASDAQ 100'][key])}</td>
+    <td>${fmtVal(DATA.stats['KOSPI'][key])}</td>
+    <td class="event-cell">${note}</td>
+  `;
+  mTbody.appendChild(tr);
+});
+
+// ============================================================
+// Seasonality charts
+// ============================================================
+const monthLabels = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+const seasonHtml = indexNames.map(name => {
+  const data = Array.from({length: 12}, (_, i) => DATA.seasonality[name][i + 1].mean);
+  const maxAbs = Math.max(...data.map(Math.abs)) * 1.15;
+
+  // Find best/worst
+  const best = data.map((v, i) => ({v, m: i + 1})).sort((a, b) => b.v - a.v).slice(0, 2);
+  const worst = data.map((v, i) => ({v, m: i + 1})).sort((a, b) => a.v - b.v).slice(0, 1);
+  const bestStr = best.map(x => `${x.m}월(${x.v >= 0 ? '+' : ''}${x.v.toFixed(2)}%)`).join(', ');
+  const worstStr = worst.map(x => `${x.m}월(${x.v >= 0 ? '+' : ''}${x.v.toFixed(2)}%)`).join(', ');
+
+  const bars = data.map(v => {
+    const isNeg = v < 0;
+    const h = (Math.abs(v) / maxAbs) * 65;
+    const sign = v >= 0 ? '+' : '';
+    return `
+      <div class="bar-col">
+        <div class="bar${isNeg ? ' negative' : ''}" style="
+          height: ${h}%;
+          position: absolute;
+          ${isNeg ? 'top: 50%' : 'bottom: 50%'};
+        "></div>
+        <div class="bar-val" style="
+          ${isNeg ? `top: calc(50% + ${h}% + 2px)` : `bottom: calc(50% + ${h}% + 2px)`};
+        ">${sign}${v.toFixed(2)}</div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="season-chart">
+      <h3>${name} — 강한 달: ${bestStr} | 약한 달: ${worstStr}</h3>
+      <div class="bars-row">${bars}</div>
+      <div class="month-labels">${monthLabels.map(m => `<span>${m}</span>`).join('')}</div>
+    </div>
+  `;
+}).join('');
+document.getElementById('season-charts').innerHTML = seasonHtml;
+
+// ============================================================
+// Correlation matrix
+// ============================================================
+const cm = document.getElementById('corr-matrix');
+const corrHtml = ['<div class="corr-cell corr-header"></div>'];
+indexNames.forEach(n => corrHtml.push(`<div class="corr-cell corr-header">${n}</div>`));
+
+indexNames.forEach(rowName => {
+  corrHtml.push(`<div class="corr-cell corr-header">${rowName}</div>`);
+  indexNames.forEach(colName => {
+    const v = DATA.correlation[rowName][colName];
+    let cls = 'corr-low';
+    if (rowName === colName) cls = 'corr-self';
+    else if (v > 0.85) cls = 'corr-high';
+    else if (v > 0.5) cls = 'corr-mid';
+    corrHtml.push(`<div class="corr-cell ${cls}">${v.toFixed(3)}</div>`);
+  });
+});
+cm.innerHTML = corrHtml.join('');
+</script>
+
+</body>
+</html>
