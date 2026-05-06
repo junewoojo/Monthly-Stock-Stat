@@ -1,0 +1,45 @@
+name: Monthly Market Stats Update
+
+# 매월 1일 KST 09:00 (= UTC 00:00) 자동 실행
+# 또는 GitHub Actions 페이지에서 수동 트리거 가능
+on:
+  schedule:
+    - cron: '0 0 1 * *'  # 분 시 일 월 요일
+  workflow_dispatch:  # Actions 탭에서 수동 실행 버튼
+
+permissions:
+  contents: write  # docs/ 폴더에 파일 커밋하기 위해 필요
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📚 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 🚀 Run update script
+        run: python update_stats.py
+
+      - name: 💾 Commit & push updated files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/index.html docs/data.xlsx
+          if git diff --cached --quiet; then
+            echo "변경 사항 없음 - 커밋 생략"
+          else
+            git commit -m "📊 Auto update: $(date -u +'%Y-%m-%d')"
+            git push
+          fi
